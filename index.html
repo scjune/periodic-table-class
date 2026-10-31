@@ -309,6 +309,15 @@ figure{margin:0}
 .scatter span:nth-child(5n){background:#E4D5FF;color:#43304A}
 .media video{display:block;width:100%;height:auto;border-radius:6px;background:#000}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.sort-v{display:grid;gap:14px}
+.sort-v .pool{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;min-height:0}
+.sort-v .ecard{font-size:.8em;padding:7px 8px}
+.zones-wrap{display:grid;gap:8px;justify-items:start}
+.sort-v .zones{position:static;max-height:none;overflow:visible;width:100%;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))}
+.sort-v .zone{display:flex;flex-direction:column;min-height:190px}
+.sort-v .zone-tiles{flex:1;flex-direction:column;align-items:center;gap:4px}
+@media (max-width:1050px){.sort-v .pool{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:620px){.sort-v .pool{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #gh-token{width:100%;padding:8px 11px;border:2px solid var(--line);border-radius:12px;background:var(--card)}
 .pin{border:3px solid var(--accent);border-radius:22px;padding:20px 22px;width:min(360px,calc(100vw - 32px));background:var(--card);color:var(--ink)}
 .pin::backdrop{background:rgba(67,48,74,.45)}
@@ -634,20 +643,20 @@ function cardInner(c){
 }
 function vSort(){
   const pool=CARDS.filter(c=>placedIn(c.l)<0),sel=UI.sel&&byL[UI.sel];
-  return stepHead("성질이 비슷한 원소끼리 묶어 보세요","카드를 묶음으로 끌어다 놓으세요. 카드를 누른 뒤 묶음을 눌러도 됩니다.")+
-  `<div class="sort">
+  return stepHead("성질이 비슷한 원소끼리 묶어 보세요","위의 카드를 아래 묶음으로 끌어다 놓으세요. 카드를 누른 뒤 묶음을 눌러도 됩니다.")+
+  `<div class="sort-v">
     <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:9px"><b>원소 카드 ${pool.length?`<span class="tag">${pool.length}장 남음</span>`:`<span class="tag">모두 분류함</span>`}</b>${sel?`<span class="note">${sel.l} 카드를 골랐어요. 묶음을 누르세요.</span>`:""}</div>
       <div class="pool" data-zone="pool">${pool.map(cardHTML).join("")||`<p class="note">카드를 모두 옮겼습니다. 칩을 누르면 내용을 다시 볼 수 있어요.</p>`}</div>
       ${sel&&placedIn(sel.l)>=0?`<div style="margin-top:12px;max-width:290px" class="stack">${cardHTML(sel)}<button class="btn ghost small" data-act="unplace">카드 더미로 되돌리기</button></div>`:""}
     </div>
-    <div class="zones">
+    <div class="zones-wrap"><div class="zones">
       ${S.sort.groups.map((g,i)=>`<div class="zone ${sel?"can":""}" data-zone="${i}">
         <div class="zone-head"><span>묶음 ${i+1}</span>${g.cards.length===0&&S.sort.groups.length>1?`<button class="x" data-act="del-zone" data-i="${i}">삭제</button>`:""}</div>
         <div class="zone-tiles">${g.cards.map(l=>`<button class="chip" data-card="${l}" aria-pressed="${UI.sel===l}" aria-label="카드 ${l}">${buddy(l,"#FFD66B",40)}</button>`).join("")||`<span class="note">여기에 놓기</span>`}</div>
         ${g.cards.length?`<label class="note" for="z${i}">이 묶음의 공통점</label>
         <input id="z${i}" type="text" data-zname="${i}" value="${esc(g.name)}" placeholder="예: 물과 잘 반응하는 금속">`:""}
       </div>`).join("")}
-      ${S.sort.groups.length<6?`<button class="btn ghost small" data-act="add-zone">+ 묶음 추가</button>`:""}
+      </div>${S.sort.groups.length<6?`<button class="btn ghost small" data-act="add-zone">+ 묶음 추가</button>`:""}
     </div>
   </div>`;
 }
@@ -1302,6 +1311,7 @@ document.addEventListener("pointermove",e=>{
   if(!drag||e.pointerId!==drag.id)return;
   if(!drag.moved&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>7){
     drag.moved=true;
+    drag.scrollId=setInterval(()=>{if(!drag||drag.lastY==null)return;if(drag.lastY>innerHeight-90)window.scrollBy(0,14);else if(drag.lastY<130)window.scrollBy(0,-14)},16);
     let g;
     if(drag.kind){
       const r=drag.el.getBoundingClientRect();drag.w=r.width;drag.h=r.height;
@@ -1311,6 +1321,7 @@ document.addEventListener("pointermove",e=>{
     document.body.appendChild(g);drag.ghost=g;
   }
   if(drag.moved){
+    drag.lastY=e.clientY;
     drag.ghost.style.left=e.clientX-(drag.kind?drag.w/2:90)+"px";drag.ghost.style.top=e.clientY-(drag.kind?drag.h/2:40)+"px";
     document.querySelectorAll(".zone.over,[data-drop].over").forEach(z=>z.classList.remove("over"));
     const el=document.elementFromPoint(e.clientX,e.clientY),z=el&&el.closest(drag.kind?"[data-drop]":".zone");
@@ -1321,6 +1332,7 @@ document.addEventListener("pointermove",e=>{
 function endDrag(e,cancel){
   if(!drag||e.pointerId!==drag.id)return;
   const d=drag;drag=null;
+  clearInterval(d.scrollId);
   if(d.ghost)d.ghost.remove();
   document.querySelectorAll(".zone.over,[data-drop].over").forEach(z=>z.classList.remove("over"));
   if(d.el)d.el.style.opacity="";
